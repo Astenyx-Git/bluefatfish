@@ -6,7 +6,7 @@
 
 | # | 步骤 | 命令/操作 | 预期 |
 | --- | --- | --- | --- |
-| T1 | 安装 | `adb install -r app-debug.apk` | 成功，桌面出现「DSH 桌宠」 |
+| T1 | 安装 | `adb install -r app-debug.apk` | 成功，桌面出现「蓝色大肥鱼」 |
 | T2 | 授权直通 | appops + pm grant（见上） | 均成功 |
 | T3 | 首启链 | `am start -n blue.fat.fish/.ConsoleActivity` | 授权后控制台显示控制项；**打开应用不再自启桌宠**（真机反馈，启动走按钮/开机自启走 BootReceiver） |
 | T4 | 双悬浮窗 | `dumpsys window windows` 过滤 dshpet | 两窗：视觉窗（不可触摸）+ 交互窗（身体命中区矩形） |
@@ -42,5 +42,4 @@
 ### 实测驱动的附加修复
 - 控制台打开应用不再自启桌宠（用户反馈）；启动/退出按钮乐观翻转 + 400ms 兜底补刷
 - 控制台背景图（res/drawable/bg_console.jpg，CENTER_CROP）
-- WebView 关闭算法暗化（API 33+）：OneUI 深色模式会把透明底/菜单白面板染暗
-- 菜单 28px box-shadow 去除：小屏上读作暗色底（"类似阴影"）
+- 菜单 28px box-shadow 去除：小屏上读作暗色底
