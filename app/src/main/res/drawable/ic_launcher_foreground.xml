@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 简化爪印：三趾 + 掌垫 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="0.55" android:scaleY="0.55" android:pivotX="54" android:pivotY="54">
+        <path
+            android:fillColor="#E91E63"
+            android:pathData="M33,26a8,8.5 0 1,0 16,0a8,8.5 0 1,0 -16,0" />
+        <path
+            android:fillColor="#E91E63"
+            android:pathData="M59,26a8,8.5 0 1,0 16,0a8,8.5 0 1,0 -16,0" />
+        <path
+            android:fillColor="#E91E63"
+            android:pathData="M16,45a7.5,8 0 1,0 15,0a7.5,8 0 1,0 -15,0" />
+        <path
+            android:fillColor="#E91E63"
+            android:pathData="M77,45a7.5,8 0 1,0 15,0a7.5,8 0 1,0 -15,0" />
+        <path
+            android:fillColor="#E91E63"
+            android:pathData="M54,44c14,0 26,10 26,24c0,12 -9,20 -26,20c-17,0 -26,-8 -26,-20c0,-14 12,-24 26,-24z" />
+    </group>
+</vector>

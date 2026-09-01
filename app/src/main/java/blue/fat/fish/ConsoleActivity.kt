@@ -1,0 +1,223 @@
+﻿package blue.fat.fish
+
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.Typeface
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.text.util.Linkify
+import android.view.Gravity
+import android.view.View
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.Switch
+import android.widget.TextView
+import android.widget.Toast
+
+/**
+ * APK 本体 = 三态控制台（系统全局字体 + Material 原生组件）：
+ *   ① 首启无权限：权限解释页 → 直达系统悬浮窗开关 → 返回自动拉起服务
+ *   ② 运行中：状态卡 + 启动/暂停/退出 + 自启开关
+ *   ③ 异常（服务被杀/权限被关）：状态标红 + 重新启动入口
+ * 关闭本页 ≠ 停宠物（Activity 只是遥控器）。
+ */
+class ConsoleActivity : Activity() {
+    private lateinit var statusView: TextView
+    private lateinit var guideBlock: LinearLayout
+    private lateinit var controlsBlock: LinearLayout
+    private lateinit var pauseBtn: Button
+    private lateinit var autostartSwitch: Switch
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val d = resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
+        val pad = dp(20)
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, dp(32), pad, pad)
+        }
+        root.addView(
+            TextView(this).apply {
+                text = getString(R.string.app_name)
+                textSize = 26f
+                gravity = Gravity.CENTER
+                typeface = Typeface.createFromAsset(assets, "fonts/上首软糖体.ttf") // 标题软糖体
+            },
+        )
+        statusView = TextView(this).apply {
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(12), 0, dp(12))
+        }
+        guideBlock = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(
+                TextView(this@ConsoleActivity).apply {
+                    text = getString(R.string.guide_title)
+                    textSize = 18f
+                    setPadding(0, dp(24), 0, dp(8))
+                },
+            )
+            addView(
+                TextView(this@ConsoleActivity).apply {
+                    text = getString(R.string.guide_body)
+                    textSize = 14f
+                    setLineSpacing(0f, 1.2f)
+                },
+            )
+            addView(
+                Button(this@ConsoleActivity).apply {
+                    text = getString(R.string.guide_button)
+                    setOnClickListener { openOverlaySettings() }
+                },
+            )
+        }
+        controlsBlock = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(
+                Button(this@ConsoleActivity).apply {
+                    text = getString(R.string.btn_start)
+                    setOnClickListener { requestNotificationsAndStart() }
+                },
+            )
+            pauseBtn = Button(this@ConsoleActivity).apply {
+                text = "暂停 / 恢复动画"
+                setOnClickListener { togglePause() }
+            }
+            addView(pauseBtn)
+            addView(
+                Button(this@ConsoleActivity).apply {
+                    text = getString(R.string.btn_exit)
+                    setOnClickListener {
+                        PetService.requestStop(this@ConsoleActivity) // 乐观翻转：UI 不等异步销毁
+                        refresh()
+                        refreshSoon()
+                    }
+                },
+            )
+            autostartSwitch = Switch(this@ConsoleActivity).apply {
+                text = getString(R.string.autostart_label)
+                isChecked = prefs().getBoolean(KEY_AUTOSTART, false)
+                setOnCheckedChangeListener { _, checked ->
+                    prefs().edit().putBoolean(KEY_AUTOSTART, checked).apply()
+                }
+            }
+            addView(autostartSwitch)
+        }
+        root.addView(statusView)
+        root.addView(guideBlock)
+        root.addView(controlsBlock)
+        root.addView(
+            TextView(this).apply {
+                text = getString(R.string.about_text)
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setPadding(0, dp(24), 0, 0)
+                Linkify.addLinks(this, Linkify.WEB_URLS) // 原项目地址可点
+                setLinkTextColor(Color.parseColor("#66ccff")) // 链接字色
+            },
+        )
+        // [dsh-pet-android] 控制台背景图：全屏 CENTER_CROP、70% 不透明度，内容滚动层叠于其上
+        val bg = ImageView(this).apply {
+            setImageResource(R.drawable.bg_console)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            alpha = 0.7f
+        }
+        val content = ScrollView(this).apply { addView(root) }
+        setContentView(
+            FrameLayout(this).apply {
+                addView(bg, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                addView(content, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            },
+        )
+        refresh()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refresh()
+        // [dsh-pet-android] 打开应用不再自动拉起桌宠（真机反馈）：
+        // 授权返回后由用户手动点「启动桌宠」；开机自启仍由 BootReceiver 负责。
+    }
+
+    /** 状态翻转落在服务侧异步回调之后，延时补刷一次兜底 */
+    private fun refreshSoon() = statusView.postDelayed({ refresh() }, 400)
+
+    private fun prefs() = getSharedPreferences(PREFS, MODE_PRIVATE)
+
+    private fun refresh() {
+        val canDraw = Settings.canDrawOverlays(this)
+        statusView.text = when {
+            !canDraw -> getString(R.string.status_no_overlay)
+            PetService.running -> getString(R.string.status_running)
+            else -> getString(R.string.status_stopped)
+        }
+        guideBlock.visibility = if (canDraw) View.GONE else View.VISIBLE
+        controlsBlock.visibility = if (canDraw) View.VISIBLE else View.GONE
+        pauseBtn.visibility = if (PetService.running) View.VISIBLE else View.GONE
+    }
+
+    /** 直达本应用的系统悬浮窗开关页（ROM 异常时退到应用详情页） */
+    private fun openOverlaySettings() {
+        val uri = Uri.parse("package:$packageName")
+        try {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, uri))
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, uri))
+            } catch (e2: Exception) {
+                Toast.makeText(this, e2.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun requestNotificationsAndStart() {
+        // 常驻通知需要 Android 13+ 运行时授权；拒绝也不阻塞启动（仅通知不显示）
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            return
+        }
+        startPet()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1) startPet()
+    }
+
+    private fun startPet() {
+        if (!Settings.canDrawOverlays(this)) {
+            refresh()
+            return
+        }
+        PetService.requestStart(this) // 乐观翻转：UI 不等异步 onStartCommand
+        refresh()
+        refreshSoon()
+    }
+
+    private fun togglePause() {
+        if (!PetService.running) return
+        startService(Intent(this, PetService::class.java).setAction(PetService.ACTION_TOGGLE_PAUSE))
+    }
+
+    companion object {
+        private const val PREFS = "pet-prefs"
+        private const val KEY_AUTOSTART = "autostart"
+    }
+}

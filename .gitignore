@@ -1,0 +1,18 @@
+# Android 构建产物
+.gradle/
+build/
+app/build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# 本地测试产物（不公开）
+test-artifacts/
+
+# Gradle 守护进程 JVM 配置（机器本地产物）
+gradle/gradle-daemon-jvm.properties
+
+# release 签名密钥库（含口令，绝不入公开仓库）
+/bluefatfish

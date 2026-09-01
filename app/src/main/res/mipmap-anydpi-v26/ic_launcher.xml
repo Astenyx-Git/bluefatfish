@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- [dsh-pet-android] 图标 = 大肥鱼照片全出血铺底（中心裁方），前景透明 -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_photo" />
+    <foreground android:drawable="@android:color/transparent" />
+</adaptive-icon>

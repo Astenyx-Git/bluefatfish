@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">蓝色大肥鱼</string>
+    <string name="guide_title">让桌宠住上你的屏幕</string>
+    <string name="guide_body">桌宠以「悬浮窗」形式常驻屏幕：任何应用之上都能看到它、拖拽它。\n\n这需要系统授予「显示在其他应用上层」权限。点击下方按钮直达开关页，打开后返回即可。</string>
+    <string name="guide_button">去开启悬浮窗权限</string>
+    <string name="status_running">● 桌宠运行中</string>
+    <string name="status_stopped">○ 桌宠未运行</string>
+    <string name="status_no_overlay">✕ 缺少悬浮窗权限</string>
+    <string name="btn_pause">暂停动画</string>
+    <string name="btn_resume">恢复动画</string>
+    <string name="btn_exit">退出桌宠</string>
+    <string name="btn_start">启动桌宠</string>
+    <string name="autostart_label">开机自启</string>
+    <string name="about_text">蓝色大肥鱼 · Android\n基于 GitHub 开源项目：https://github.com/PC2005-cloud/dsh-pet\n项目仓库地址：https://github.com/Astenyx-Git/bluefatfish</string>
+</resources>

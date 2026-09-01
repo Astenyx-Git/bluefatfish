@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知小图标（纯白剪影） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group android:scaleX="0.24" android:scaleY="0.24" android:pivotX="12" android:pivotY="12">
+        <path android:fillColor="#FFFFFF" android:pathData="M33,26a8,8.5 0 1,0 16,0a8,8.5 0 1,0 -16,0" />
+        <path android:fillColor="#FFFFFF" android:pathData="M59,26a8,8.5 0 1,0 16,0a8,8.5 0 1,0 -16,0" />
+        <path android:fillColor="#FFFFFF" android:pathData="M16,45a7.5,8 0 1,0 15,0a7.5,8 0 1,0 -15,0" />
+        <path android:fillColor="#FFFFFF" android:pathData="M77,45a7.5,8 0 1,0 15,0a7.5,8 0 1,0 -15,0" />
+        <path android:fillColor="#FFFFFF" android:pathData="M54,44c14,0 26,10 26,24c0,12 -9,20 -26,20c-17,0 -26,-8 -26,-20c0,-14 12,-24 26,-24z" />
+    </group>
+</vector>
