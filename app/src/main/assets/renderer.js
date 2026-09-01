@@ -567,12 +567,15 @@ class PetSprite {
     const token = ++this.throwToken;
     let state = { x: px, y: py, vx, vy };
     let last = performance.now();
+    let throwDt = 1 / 60; // [dsh-pet-android] EMA 平滑帧时（种子 60fps）
     let prevGrounded = false; // 落地 Q 弹：只在空中→地面转换帧触发一次
     const step = () => {
       if (this.throwToken !== token) return;
       const now = performance.now();
-      const dt = (now - last) / 1000;
+      const dtRaw = (now - last) / 1000;
       last = now;
+      throwDt = throwDt * 0.75 + dtRaw * 0.25; // [dsh-pet-android] EMA：0.75 历史 + 0.25 当前帧
+      const dt = Math.min(Math.max(throwDt, 0), S.MAX_STEP_DT);
       const fallingVy = state.vy; // 本帧积分前的竖直速度（正=下落）：即落地冲击速度
       const res = S.throwStep(state, dt, bounds);
       state = { x: res.x, y: res.y, vx: res.vx, vy: res.vy };

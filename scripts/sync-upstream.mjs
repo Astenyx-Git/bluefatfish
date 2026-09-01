@@ -84,6 +84,24 @@ window.__dshPetDragScale = (() => {
     'const WINDOW_MARGIN_RATIO = 0.5;',
     'const WINDOW_MARGIN_RATIO = 0.12; // [dsh-pet-android] 气泡已删，余量仅为菜单预留（与 WindowController.MARGIN_RATIO 同步）',
   ],
+  // ②c 抛掷帧时 EMA 平滑：抑制 rAF 帧宽抖动带来的积分节拍抖动（低速蠕行段视觉更匀）
+  [
+    `    let state = { x: px, y: py, vx, vy };
+    let last = performance.now();`,
+    `    let state = { x: px, y: py, vx, vy };
+    let last = performance.now();
+    let throwDt = 1 / 60; // [dsh-pet-android] EMA 平滑帧时（种子 60fps）`,
+  ],
+  [
+    `      const dt = (now - last) / 1000;
+      last = now;
+      const fallingVy = state.vy; // 本帧积分前的竖直速度（正=下落）：即落地冲击速度`,
+    `      const dtRaw = (now - last) / 1000;
+      last = now;
+      throwDt = throwDt * 0.75 + dtRaw * 0.25; // [dsh-pet-android] EMA：0.75 历史 + 0.25 当前帧
+      const dt = Math.min(Math.max(throwDt, 0), S.MAX_STEP_DT);
+      const fallingVy = state.vy; // 本帧积分前的竖直速度（正=下落）：即落地冲击速度`,
+  ],
   // ③ 根级工具项替换 + ④ events 过滤
   [
     `    // 桌面专属工具根项（打开网站 / 查看余额 / 回到初始位置）+ 共享菜单树（动作→分类→具体动画）

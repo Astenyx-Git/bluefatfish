@@ -53,6 +53,10 @@ class WindowController(private val context: Context) {
     private var vy = 0
     private var vw = 0
     private var vh = 0
+    // [dsh-pet-android] 亚像素累加：逐帧取整的余量进位到下一帧，
+    // 低速蠕行段（每帧位移 < 1 物理像素）消除"停两帧跳一像素"的量化抖动
+    private var carryX = 0f
+    private var carryY = 0f
     private var menuExpanded = false // renderer 菜单开合（setInteractive）
     private var dragExpanded = false // 拖拽/长按期（relay 驱动）
     private var started = false
@@ -120,8 +124,12 @@ class WindowController(private val context: Context) {
 
     /** renderer setBounds（CSS px）→ 屏幕 px 摆窗 */
     private fun updateBounds(x: Float, y: Float, w: Float, h: Float) {
-        vx = Math.round(x * density)
-        vy = Math.round(y * density)
+        val fx = x * density + carryX
+        val fy = y * density + carryY
+        vx = Math.round(fx)
+        vy = Math.round(fy)
+        carryX = fx - vx
+        carryY = fy - vy
         vw = Math.round(w * density)
         vh = Math.round(h * density)
         mainHandler.post {
