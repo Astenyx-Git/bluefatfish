@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
@@ -114,10 +115,10 @@ class ConsoleActivity : Activity() {
                 }
             }
             addView(autostartSwitch)
-            // [dsh-pet-android] 重力拖动条：1.0 / 0.7 / 0.5 / 0.3 / 0 五档，松手即实时注入 renderer
-            val gravityValues = floatArrayOf(1f, 0.7f, 0.5f, 0.3f, 0f)
+            // [dsh-pet-android] 重力拖动条：左小右大（0 / 0.3 / 0.5 / 0.7 / 1.0），松手即实时注入 renderer
+            val gravityValues = floatArrayOf(0f, 0.3f, 0.5f, 0.7f, 1f)
             val savedG = prefs().getFloat(PetService.KEY_GRAVITY_MULT, 1f)
-            val initialIdx = gravityValues.indexOfFirst { it == savedG }.let { if (it < 0) 0 else it }
+            val initialIdx = gravityValues.indexOfFirst { it == savedG }.let { if (it < 0) 4 else it }
             val gravityLabel = TextView(this@ConsoleActivity).apply {
                 text = gravityText(gravityValues[initialIdx])
                 textSize = 14f
@@ -128,6 +129,8 @@ class ConsoleActivity : Activity() {
                 SeekBar(this@ConsoleActivity).apply {
                     max = 4
                     progress = initialIdx
+                    progressTintList = ColorStateList.valueOf(Color.parseColor("#66ccff"))
+                    thumbTintList = ColorStateList.valueOf(Color.parseColor("#66ccff"))
                     setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                         override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
                             gravityLabel.text = gravityText(gravityValues[p])
