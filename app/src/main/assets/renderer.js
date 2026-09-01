@@ -45,6 +45,18 @@ window.__dshPetGravityMult = (() => {
   const n = Number(g);
   return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
 })();
+// [dsh-pet-android] 空气阻力档位：重力越低阻力越大（抵消长滞空的失控滑行），节点间线性插值
+// 表：1.0→100%，0.7→125%，0.5→150%，0.3→175%，0→175%
+window.__dshPetDragScale = (() => {
+  const pts = [[0, 1.75], [0.3, 1.75], [0.5, 1.5], [0.7, 1.25], [1.0, 1.0]];
+  const g = window.__dshPetGravityMult;
+  if (g <= pts[0][0]) return pts[0][1];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const g0 = pts[i][0], d0 = pts[i][1], g1 = pts[i + 1][0], d1 = pts[i + 1][1];
+    if (g >= g0 && g <= g1) return d0 + (d1 - d0) * (g - g0) / (g1 - g0);
+  }
+  return 1;
+})();
 const ORIGIN = new URL(CONFIG.configUrl).origin;
 const withSuffix = (suffix) => CONFIG.configUrl.replace(/config\.jsonc$/, suffix);
 const BALANCE_URL = withSuffix('balance');

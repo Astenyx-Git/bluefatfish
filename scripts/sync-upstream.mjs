@@ -65,6 +65,18 @@ window.__dshPetGravityMult = (() => {
   if (g === null) return 1;
   const n = Number(g);
   return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
+})();
+// [dsh-pet-android] 空气阻力档位：重力越低阻力越大（抵消长滞空的失控滑行），节点间线性插值
+// 表：1.0→100%，0.7→125%，0.5→150%，0.3→175%，0→175%
+window.__dshPetDragScale = (() => {
+  const pts = [[0, 1.75], [0.3, 1.75], [0.5, 1.5], [0.7, 1.25], [1.0, 1.0]];
+  const g = window.__dshPetGravityMult;
+  if (g <= pts[0][0]) return pts[0][1];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const g0 = pts[i][0], d0 = pts[i][1], g1 = pts[i + 1][0], d1 = pts[i + 1][1];
+    if (g >= g0 && g <= g1) return d0 + (d1 - d0) * (g - g0) / (g1 - g0);
+  }
+  return 1;
 })();`,
   ],
   // ② 气泡已删，外扩余量收窄（与 WindowController.MARGIN_RATIO 保持一致）
@@ -293,12 +305,16 @@ writeFileSync(join(assets, 'config.jsonc'), JSON.stringify(slim, null, 1), 'utf8
 // + 重力倍率/空气阻尼（设置页拖动条 → renderer URL 参数 gm / ACTION_SET_GRAVITY 实时覆盖）
 const sharedCorePatched = patch(join(helper, 'shared-core.js'), [
   [
+    "const DEAD_ZONE_SPEED = 500;",
+    "const DEAD_ZONE_SPEED = 350; // [dsh-pet-android] 释放死区 500→350：更温和的甩动也进抛掷物理（否则重力档位无感）",
+  ],
+  [
     "const GRAVITY = 1400;",
-    "const GRAVITY = 1400;\nconst AIR_DRAG = 0.35; // [dsh-pet-android] 轻度空气阻尼（零重力/低重力滑行制动）",
+    "const GRAVITY = 1400;\nconst AIR_DRAG = 0.35; // [dsh-pet-android] 轻度空气阻尼基准（乘以档位阻力系数）",
   ],
   [
     "\tvy += GRAVITY * dt;",
-    "\tvy += GRAVITY * (window.__dshPetGravityMult ?? 1) * dt; // [dsh-pet-android] 重力倍率\n\tconst dragK = Math.max(0, 1 - AIR_DRAG * dt); // [dsh-pet-android] 空气阻尼：速度按帧衰减\n\tvx *= dragK;\n\tvy *= dragK;",
+    "\tvy += GRAVITY * (window.__dshPetGravityMult ?? 1) * dt; // [dsh-pet-android] 重力倍率\n\tconst dragK = Math.max(0, 1 - AIR_DRAG * (window.__dshPetDragScale ?? 1) * dt); // [dsh-pet-android] 空气阻尼：速度按帧衰减（档位越低阻力越大）\n\tvx *= dragK;\n\tvy *= dragK;",
   ],
   [
     "\tconst atRest = y >= b.maxY - 1 && Math.abs(vy) < 1 && Math.abs(vx) < REST_VX || bounced && speed < REST_VY && Math.abs(vy) < 1;",
