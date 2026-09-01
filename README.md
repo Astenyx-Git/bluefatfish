@@ -2,7 +2,7 @@
 
 Android 桌面宠物应用：以双悬浮窗常驻屏幕任意应用之上，可拖拽、抛掷、互动。
 
-基于 GitHub 开源项目 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)（MIT）的 Android 独立发行版，无 DSH 运行时依赖。
+基于 GitHub 开源项目 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)（MIT）的 Android 桌宠
 
 ## 特性
 
