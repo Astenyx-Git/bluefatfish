@@ -1,4 +1,4 @@
-﻿package blue.fat.fish
+package blue.fat.fish
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -21,6 +21,9 @@ class PetService : Service() {
         private const val CHANNEL_ID = "pet"
         private const val NOTIFICATION_ID = 1
         const val ACTION_TOGGLE_PAUSE = "blue.fat.fish.TOGGLE_PAUSE"
+        const val ACTION_SET_GRAVITY = "blue.fat.fish.SET_GRAVITY"
+        const val PREFS = "pet-prefs"
+        const val KEY_GRAVITY_MULT = "gravity_mult"
         @Volatile
         var running = false
             private set
@@ -81,6 +84,11 @@ class PetService : Service() {
         }
         // 控制台的「暂停 / 恢复动画」走同一 renderer 通道（与菜单项同源）
         if (intent?.action == ACTION_TOGGLE_PAUSE) controller?.togglePause()
+        // 控制台重力拖动条：实时注入 renderer（window.__dshPetGravityMult）
+        if (intent?.action == ACTION_SET_GRAVITY) {
+            val gm = intent.getFloatExtra("gm", 1f)
+            controller?.evalJs("window.__dshPetGravityMult=" + gm + ";")
+        }
         return START_STICKY
     }
 

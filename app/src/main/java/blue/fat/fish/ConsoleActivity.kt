@@ -1,4 +1,4 @@
-﻿package blue.fat.fish
+package blue.fat.fish
 
 import android.Manifest
 import android.app.Activity
@@ -18,6 +18,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -113,6 +114,39 @@ class ConsoleActivity : Activity() {
                 }
             }
             addView(autostartSwitch)
+            // [dsh-pet-android] 重力拖动条：1.0 / 0.7 / 0.5 / 0.3 / 0 五档，松手即实时注入 renderer
+            val gravityValues = floatArrayOf(1f, 0.7f, 0.5f, 0.3f, 0f)
+            val savedG = prefs().getFloat(PetService.KEY_GRAVITY_MULT, 1f)
+            val initialIdx = gravityValues.indexOfFirst { it == savedG }.let { if (it < 0) 0 else it }
+            val gravityLabel = TextView(this@ConsoleActivity).apply {
+                text = gravityText(gravityValues[initialIdx])
+                textSize = 14f
+                setPadding(0, dp(16), 0, dp(4))
+            }
+            addView(gravityLabel)
+            addView(
+                SeekBar(this@ConsoleActivity).apply {
+                    max = 4
+                    progress = initialIdx
+                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
+                            gravityLabel.text = gravityText(gravityValues[p])
+                        }
+
+                        override fun onStartTrackingTouch(sb: SeekBar?) {}
+
+                        override fun onStopTrackingTouch(sb: SeekBar?) {
+                            val v = gravityValues[progress]
+                            prefs().edit().putFloat(PetService.KEY_GRAVITY_MULT, v).apply()
+                            startService(
+                                Intent(this@ConsoleActivity, PetService::class.java)
+                                    .setAction(PetService.ACTION_SET_GRAVITY)
+                                    .putExtra("gm", v),
+                            )
+                        }
+                    })
+                },
+            )
         }
         root.addView(statusView)
         root.addView(guideBlock)
@@ -153,7 +187,11 @@ class ConsoleActivity : Activity() {
     /** 状态翻转落在服务侧异步回调之后，延时补刷一次兜底 */
     private fun refreshSoon() = statusView.postDelayed({ refresh() }, 400)
 
-    private fun prefs() = getSharedPreferences(PREFS, MODE_PRIVATE)
+    /** 重力档位文案（0 = 悬浮模式） */
+    private fun gravityText(v: Float): String =
+        if (v == 0f) "重力 0×（悬浮）" else "重力 " + v + "×"
+
+    private fun prefs() = getSharedPreferences(PetService.PREFS, MODE_PRIVATE)
 
     private fun refresh() {
         val canDraw = Settings.canDrawOverlays(this)
@@ -217,7 +255,6 @@ class ConsoleActivity : Activity() {
     }
 
     companion object {
-        private const val PREFS = "pet-prefs"
         private const val KEY_AUTOSTART = "autostart"
     }
 }

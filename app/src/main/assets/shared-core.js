@@ -731,6 +731,7 @@ const PEAK_WEIGHT = .5;
 const ACCEL_REF = 8e3;
 const ACCEL_GAIN_MAX = .6;
 const GRAVITY = 1400;
+const AIR_DRAG = 0.35; // [dsh-pet-android] 轻度空气阻尼（零重力/低重力滑行制动）
 const RESTITUTION = .78;
 const GROUND_FRICTION = 2.5;
 const REST_VY = 40;
@@ -828,7 +829,10 @@ const estimateReleaseVelocity = (trail, now) => {
 const throwStep = (s, dtRaw, b) => {
 	const dt = Math.min(Math.max(dtRaw, 0), MAX_STEP_DT);
 	let { x, y, vx, vy } = s;
-	vy += GRAVITY * dt;
+	vy += GRAVITY * (window.__dshPetGravityMult ?? 1) * dt; // [dsh-pet-android] 重力倍率
+	const dragK = Math.max(0, 1 - AIR_DRAG * dt); // [dsh-pet-android] 空气阻尼：速度按帧衰减
+	vx *= dragK;
+	vy *= dragK;
 	x += vx * dt;
 	y += vy * dt;
 	let bounced = false;
@@ -853,7 +857,8 @@ const throwStep = (s, dtRaw, b) => {
 		bounced = true;
 	}
 	const speed = Math.hypot(vx, vy);
-	const atRest = y >= b.maxY - 1 && Math.abs(vy) < 1 && Math.abs(vx) < REST_VX || bounced && speed < REST_VY && Math.abs(vy) < 1;
+	const gm0 = (window.__dshPetGravityMult ?? 1) === 0; // [dsh-pet-android] 零重力：速度耗尽即原地悬停（无地面可触）
+	const atRest = y >= b.maxY - 1 && Math.abs(vy) < 1 && Math.abs(vx) < REST_VX || bounced && speed < REST_VY && Math.abs(vy) < 1 || gm0 && speed < REST_VX;
 	return {
 		x,
 		y,

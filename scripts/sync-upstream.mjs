@@ -57,8 +57,15 @@ const rendererPatches = [
   h: Number(params.get('workAreaH') || (window.screen && window.screen.availHeight) || 1080),
 };
 // [dsh-pet-android] 底部导航/手势条 inset：可用高扣减 → 漫游边界/抛掷地面/底部锚点整体上移。
-// （坐标即屏幕绝对坐标；菜单防遮挡靠「窗口底不压进系统栏」的地面收口，见 throwBounds 处）
-VIEW.h -= Number(params.get('gestureInset') || 0);`,
+// （坐标即屏幕绝对坐标；菜单防遮挡由菜单打开时上报的 __dshPetMenuBottomInset 驱动，见 onContextMenu 与 shared-core 夹取补丁）
+VIEW.h -= Number(params.get('gestureInset') || 0);
+// [dsh-pet-android] 重力倍率（设置页拖动条写入 URL 参数 gm；PetService ACTION_SET_GRAVITY 可实时覆盖）
+window.__dshPetGravityMult = (() => {
+  const g = params.get('gm');
+  if (g === null) return 1;
+  const n = Number(g);
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
+})();`,
   ],
   // ② 气泡已删，外扩余量收窄（与 WindowController.MARGIN_RATIO 保持一致）
   [
@@ -283,7 +290,20 @@ writeFileSync(join(assets, 'index.html'), indexHtml, 'utf8');
 writeFileSync(join(assets, 'config.jsonc'), JSON.stringify(slim, null, 1), 'utf8');
 // shared-core fork：菜单面板夹取避开视口底部被系统导航栏占用的部分
 // （__dshPetMenuBottomInset 由 renderer 在菜单打开时写入；rolldown 产物为 tab+双引号）
+// + 重力倍率/空气阻尼（设置页拖动条 → renderer URL 参数 gm / ACTION_SET_GRAVITY 实时覆盖）
 const sharedCorePatched = patch(join(helper, 'shared-core.js'), [
+  [
+    "const GRAVITY = 1400;",
+    "const GRAVITY = 1400;\nconst AIR_DRAG = 0.35; // [dsh-pet-android] 轻度空气阻尼（零重力/低重力滑行制动）",
+  ],
+  [
+    "\tvy += GRAVITY * dt;",
+    "\tvy += GRAVITY * (window.__dshPetGravityMult ?? 1) * dt; // [dsh-pet-android] 重力倍率\n\tconst dragK = Math.max(0, 1 - AIR_DRAG * dt); // [dsh-pet-android] 空气阻尼：速度按帧衰减\n\tvx *= dragK;\n\tvy *= dragK;",
+  ],
+  [
+    "\tconst atRest = y >= b.maxY - 1 && Math.abs(vy) < 1 && Math.abs(vx) < REST_VX || bounced && speed < REST_VY && Math.abs(vy) < 1;",
+    "\tconst gm0 = (window.__dshPetGravityMult ?? 1) === 0; // [dsh-pet-android] 零重力：速度耗尽即原地悬停（无地面可触）\n\tconst atRest = y >= b.maxY - 1 && Math.abs(vy) < 1 && Math.abs(vx) < REST_VX || bounced && speed < REST_VY && Math.abs(vy) < 1 || gm0 && speed < REST_VX;",
+  ],
   [
     "\t\tif (top + panel.offsetHeight > vh - 4) top = Math.max(4, vh - 4 - panel.offsetHeight);",
     "\t\tconst mbi = window.__dshPetMenuBottomInset || 0; // [dsh-pet-android] 视口底系统栏占用\n\t\tif (top + panel.offsetHeight > vh - mbi - 4) top = Math.max(4, vh - mbi - 4 - panel.offsetHeight);",

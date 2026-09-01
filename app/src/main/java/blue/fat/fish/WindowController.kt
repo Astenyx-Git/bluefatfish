@@ -1,4 +1,4 @@
-﻿package blue.fat.fish
+package blue.fat.fish
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -200,6 +200,11 @@ class WindowController(private val context: Context) {
     /** 控制台与菜单共用的暂停/恢复（renderer 内部实现：暂停视频 + 停 rAF 驱动） */
     fun togglePause() {
         mainHandler.post { webHost.eval("sprites.forEach(function(s){s.togglePause()})") }
+    }
+
+    /** 控制台实时参数注入（重力倍率等） */
+    fun evalJs(js: String) {
+        mainHandler.post { webHost.eval(js) }
     }
 
     private fun handleShellAction(action: String) {

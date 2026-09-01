@@ -11,8 +11,8 @@ android {
         applicationId = "blue.fat.fish"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     // release 签名：项目根 bluefatfish 密钥库（PKCS12，全部字段 = bluefatfish，30 年有效期）

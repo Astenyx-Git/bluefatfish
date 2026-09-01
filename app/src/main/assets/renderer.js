@@ -36,8 +36,15 @@ const VIEW = {
   h: Number(params.get('workAreaH') || (window.screen && window.screen.availHeight) || 1080),
 };
 // [dsh-pet-android] 底部导航/手势条 inset：可用高扣减 → 漫游边界/抛掷地面/底部锚点整体上移。
-// （坐标即屏幕绝对坐标；菜单防遮挡靠「窗口底不压进系统栏」的地面收口，见 throwBounds 处）
+// （坐标即屏幕绝对坐标；菜单防遮挡由菜单打开时上报的 __dshPetMenuBottomInset 驱动，见 onContextMenu 与 shared-core 夹取补丁）
 VIEW.h -= Number(params.get('gestureInset') || 0);
+// [dsh-pet-android] 重力倍率（设置页拖动条写入 URL 参数 gm；PetService ACTION_SET_GRAVITY 可实时覆盖）
+window.__dshPetGravityMult = (() => {
+  const g = params.get('gm');
+  if (g === null) return 1;
+  const n = Number(g);
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
+})();
 const ORIGIN = new URL(CONFIG.configUrl).origin;
 const withSuffix = (suffix) => CONFIG.configUrl.replace(/config\.jsonc$/, suffix);
 const BALANCE_URL = withSuffix('balance');
