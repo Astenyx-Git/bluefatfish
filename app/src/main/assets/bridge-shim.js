@@ -11,7 +11,6 @@
   var native = window.AndroidPetBridge;
   window.petBridge = {
     setBounds: function (x, y, w, h) { if (native) native.setBounds(x, y, w, h); },
-    setMotion: function (x, y, vx, vy) { if (native) native.setMotion(x, y, vx, vy); },
     setInteractive: function (flag) { if (native) native.setInteractive(!!flag); },
     openDshSite: function () {}, // 独立 APK 已删除（无 DSH 网站）
     shellAction: function (name) { if (native) native.shellAction(String(name)); },

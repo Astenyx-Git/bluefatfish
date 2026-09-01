@@ -11,7 +11,6 @@ import android.webkit.JavascriptInterface
  */
 class PetBridge(
     private val onBounds: (Float, Float, Float, Float) -> Unit,
-    private val onMotion: (Float, Float, Float, Float) -> Unit,
     private val onInteractive: (Boolean) -> Unit,
     private val onShellAction: (String) -> Unit,
 ) {
@@ -21,12 +20,6 @@ class PetBridge(
     @JavascriptInterface
     fun setBounds(x: Double, y: Double, w: Double, h: Double) {
         main.post { onBounds(x.toFloat(), y.toFloat(), w.toFloat(), h.toFloat()) }
-    }
-
-    /** 抛掷运动样本（CSS px：x/y = 包围盒左上角，vx/vy = px/s）→ 原生 Choreographer 插值摆窗 */
-    @JavascriptInterface
-    fun setMotion(x: Double, y: Double, vx: Double, vy: Double) {
-        main.post { onMotion(x.toFloat(), y.toFloat(), vx.toFloat(), vy.toFloat()) }
     }
 
     /** renderer 菜单开合 → 交互窗扩缩（true=扩到整窗盖住菜单，false=收回身体命中区） */

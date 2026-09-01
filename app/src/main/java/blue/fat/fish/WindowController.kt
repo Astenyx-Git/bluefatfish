@@ -6,7 +6,6 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
-import android.view.Choreographer
 import android.view.Gravity
 import android.view.WindowManager
 import android.webkit.WebView
@@ -58,8 +57,6 @@ class WindowController(private val context: Context) {
     // 低速蠕行段（每帧位移 < 1 物理像素）消除"停两帧跳一像素"的量化抖动
     private var carryX = 0f
     private var carryY = 0f
-    private var lastWCss = 0f // 运动插值器复用的最近窗口尺寸（CSS px）
-    private var lastHCss = 0f
     private var menuExpanded = false // renderer 菜单开合（setInteractive）
     private var dragExpanded = false // 拖拽/长按期（relay 驱动）
     private var started = false
@@ -79,7 +76,6 @@ class WindowController(private val context: Context) {
 
         val bridge = PetBridge(
             onBounds = { x, y, w, h -> updateBounds(x, y, w, h) },
-            onMotion = { x, y, vx, vy -> motion.onSample(x, y, vx, vy) },
             onInteractive = { expand ->
                 menuExpanded = expand
                 mainHandler.post { layoutTouch() }
@@ -121,21 +117,13 @@ class WindowController(private val context: Context) {
     fun destroy() {
         if (!started) return
         started = false
-        motion.stop()
         try { wm.removeView(visual) } catch (_: Exception) {}
         try { wm.removeView(touch) } catch (_: Exception) {}
         webHost.destroy()
     }
 
-    /** renderer setBounds（CSS px）→ 屏幕 px 摆窗。立即落位语义：同时停掉运动插值
-     *  （拖拽跟随/菜单/位置还原等通道与抛掷插值互斥）。 */
+    /** renderer setBounds（CSS px）→ 屏幕 px 摆窗 */
     private fun updateBounds(x: Float, y: Float, w: Float, h: Float) {
-        motion.stop()
-        placeBounds(x, y, w, h)
-    }
-
-    /** 实际摆位（含亚像素累加）；运动插值器逐 vsync 调用 */
-    private fun placeBounds(x: Float, y: Float, w: Float, h: Float) {
         val fx = x * density + carryX
         val fy = y * density + carryY
         vx = Math.round(fx)
@@ -144,8 +132,6 @@ class WindowController(private val context: Context) {
         carryY = fy - vy
         vw = Math.round(w * density)
         vh = Math.round(h * density)
-        lastWCss = w
-        lastHCss = h
         mainHandler.post {
             if (!started) return@post
             try {
@@ -154,63 +140,6 @@ class WindowController(private val context: Context) {
             layoutTouch()
         }
     }
-
-    /** [dsh-pet-android] 抛掷运动插值器：原生 Choreographer 逐 vsync 死 reckoning 推进
-     *  （pos += vel×dt），JS 样本只做 40% 校正——跨进程/主线程的节拍抖动不再影响呈现。
-     *  样本断流 250ms 自动急停（暂停/页面失活时防飞出屏）。 */
-    private inner class MotionAnimator : Choreographer.FrameCallback {
-        private var running = false
-        private var px = 0f // css px
-        private var py = 0f
-        private var velX = 0f // css px/s
-        private var velY = 0f
-        private var lastNs = 0L
-        private var lastSampleNs = 0L
-
-        override fun doFrame(frameNs: Long) {
-            if (!running) return
-            val dt = if (lastNs == 0L) 0.016f else ((frameNs - lastNs) / 1e9f).coerceIn(0f, 0.05f)
-            lastNs = frameNs
-            if (frameNs - lastSampleNs > 250_000_000L) { // 样本断流：急停
-                stop()
-                return
-            }
-            px += velX * dt
-            py += velY * dt
-            apply()
-            Choreographer.getInstance().postFrameCallback(this)
-        }
-
-        fun onSample(x: Float, y: Float, vx: Float, vy: Float) {
-            lastSampleNs = System.nanoTime()
-            if (vx == 0f && vy == 0f) { // 终点样本：落到精确位置并停止
-                px = x; py = y
-                stop()
-                apply()
-                return
-            }
-            if (!running) {
-                px = x; py = y
-                running = true
-                lastNs = 0L
-                Choreographer.getInstance().postFrameCallback(this)
-            } else {
-                px += (x - px) * 0.4f // 样本校正：拉回 40%，余量后续帧消化
-                py += (y - py) * 0.4f
-            }
-            velX = vx
-            velY = vy
-        }
-
-        fun stop() {
-            running = false
-        }
-
-        private fun apply() {
-            placeBounds(px, py, lastWCss, lastHCss)
-        }
-    }
-    private val motion = MotionAnimator()
 
     /** 交互窗摆放：扩窗（菜单/拖拽）= 整个视觉窗矩形；常态 = 身体命中区 */
     private fun layoutTouch() {

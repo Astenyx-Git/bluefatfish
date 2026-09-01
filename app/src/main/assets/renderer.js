@@ -305,13 +305,6 @@ class PetSprite {
     }
   }
 
-  // [dsh-pet-android] 抛掷运动样本（原始浮点位置 + 速度 px/s）→ 原生插值器
-  sendMotion(x, y, vx, vy) {
-    if (window.petBridge && window.petBridge.setMotion) {
-      window.petBridge.setMotion(x, y, vx, vy);
-    }
-  }
-
   // 角落/边距 → 窗口位置；拖拽后按会话内位置（比例）还原——**松手无任何边界夹取**，
   // 宠物停在哪就算哪（与浏览器一致：可以完全拖出工作区/屏幕；漫游仍有 planMove 边界检查兜底）
   position() {
@@ -583,7 +576,7 @@ class PetSprite {
       const fallingVy = state.vy; // 本帧积分前的竖直速度（正=下落）：即落地冲击速度
       const res = S.throwStep(state, dt, bounds);
       state = { x: res.x, y: res.y, vx: res.vx, vy: res.vy };
-      this.sendMotion(res.x, res.y, res.vx, res.vy);
+      this.sendBounds(res.x, res.y);
       // 落地 Q 弹：只在空中→地面转换帧触发一次，力度随冲击速度（轻落 0.8 ~ 重砸 0.55）
       const grounded = res.y >= bounds.maxY - 1;
       if (res.bounced && grounded && !prevGrounded) {
@@ -593,7 +586,6 @@ class PetSprite {
       prevGrounded = grounded;
       if (res.atRest) {
         this.throwRef = null;
-        this.sendMotion(res.x, res.y, 0, 0); // [dsh-pet-android] 终点零速样本
         this.customPos = { rx: (this.pos.x + this.halfW) / VIEW.w, ry: (this.pos.y + this.halfH) / VIEW.h };
         window.__dshPetDebug.lastDragRelease = { x: this.pos.x, y: this.pos.y };
         return;

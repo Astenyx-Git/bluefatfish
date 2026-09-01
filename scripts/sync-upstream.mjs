@@ -84,48 +84,6 @@ window.__dshPetDragScale = (() => {
     'const WINDOW_MARGIN_RATIO = 0.5;',
     'const WINDOW_MARGIN_RATIO = 0.12; // [dsh-pet-android] 气泡已删，余量仅为菜单预留（与 WindowController.MARGIN_RATIO 同步）',
   ],
-  // ②d 抛掷运动通道：sendBounds（立即落位）之外新增 setMotion（位置+速度），
-  //   原生 Choreographer 死 reckoning 插值摆窗——跨进程节拍抖动不影响呈现（低速卡顿根治）
-  [
-    `    if (window.petBridge) {
-      window.petBridge.setBounds(
-        this.pos.x - this.margin.l,
-        this.pos.y - this.margin.t,
-        this.size + this.margin.l + this.margin.r,
-        this.winH + this.margin.t + this.margin.b,
-      );
-    }
-  }`,
-    `    if (window.petBridge) {
-      window.petBridge.setBounds(
-        this.pos.x - this.margin.l,
-        this.pos.y - this.margin.t,
-        this.size + this.margin.l + this.margin.r,
-        this.winH + this.margin.t + this.margin.b,
-      );
-    }
-  }
-
-  // [dsh-pet-android] 抛掷运动样本（原始浮点位置 + 速度 px/s）→ 原生插值器
-  sendMotion(x, y, vx, vy) {
-    if (window.petBridge && window.petBridge.setMotion) {
-      window.petBridge.setMotion(x, y, vx, vy);
-    }
-  }`,
-  ],
-  // ②e 抛掷循环改喂运动通道（不再逐帧 setBounds —— 否则会打断原生插值）
-  [
-    `      this.sendBounds(res.x, res.y);`,
-    `      this.sendMotion(res.x, res.y, res.vx, res.vy);`,
-  ],
-  // ②f 落定：终点零速样本 → 原生缓停到精确位置
-  [
-    `      if (res.atRest) {
-        this.throwRef = null;`,
-    `      if (res.atRest) {
-        this.throwRef = null;
-        this.sendMotion(res.x, res.y, 0, 0); // [dsh-pet-android] 终点零速样本`,
-  ],
   // ③ 根级工具项替换 + ④ events 过滤
   [
     `    // 桌面专属工具根项（打开网站 / 查看余额 / 回到初始位置）+ 共享菜单树（动作→分类→具体动画）
