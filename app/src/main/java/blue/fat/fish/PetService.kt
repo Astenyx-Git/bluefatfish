@@ -60,12 +60,28 @@ class PetService : Service() {
             this, 0, Intent(this, ConsoleActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        // [dsh-pet-android] 大图标 = 彩色应用图标（自适应图标安全解码）；状态栏小图标仍为单色模板（系统限制）
+        val largeIcon = try {
+            val d = packageManager.getApplicationIcon(packageName)
+            val w = d.intrinsicWidth.coerceAtLeast(1)
+            val h = d.intrinsicHeight.coerceAtLeast(1)
+            val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bmp)
+            d.setBounds(0, 0, w, h)
+            d.draw(canvas)
+            bmp
+        } catch (_: Exception) {
+            null
+        }
         val notification: Notification = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_pet)
             .setContentTitle(getString(R.string.app_name))
-            .setContentText("宠物正在屏幕上陪伴你")
+            .setContentText("大肥鱼正在你的屏幕上瞎逛~")
             .setContentIntent(pi)
             .setOngoing(true)
+            .setColor(0xFF66CCFF.toInt())
+            .setColorized(false)
+            .apply { if (largeIcon != null) setLargeIcon(largeIcon) }
             .build()
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
