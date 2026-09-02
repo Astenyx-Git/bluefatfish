@@ -66,6 +66,14 @@ window.__dshPetGravityMult = (() => {
   const n = Number(g);
   return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
 })();
+// [dsh-pet-android] 阻力用户倍率（控制台阻力条写入 URL 参数 dm；PetService ACTION_SET_DRAG 可实时覆盖）：
+// 与 __dshPetDragScale（重力档位基础阻力）相乘，1.0×-5.0×
+window.__dshPetDragUserMult = (() => {
+  const d = params.get('dm');
+  if (d === null) return 1;
+  const n = Number(d);
+  return Number.isFinite(n) ? Math.min(5, Math.max(1, n)) : 1;
+})();
 // [dsh-pet-android] 空气阻力档位：重力越低阻力越大（抵消长滞空的失控滑行），节点间线性插值
 // 表：1.0→100%，0.7→125%，0.5→150%，0.3→175%，0→175%
 window.__dshPetDragScale = (() => {
@@ -111,6 +119,20 @@ window.__dshPetDragScale = (() => {
         this.once = false;
         this.switchTo(name, false);
       }`,
+  ],
+  // ⑩ 窗口左右余量扩展 1/3 宠物宽：宽动画帧不被窗口裁切（与 WindowController.MARGIN_RATIO_X 同步）
+  [
+    `    const m = this.size * WINDOW_MARGIN_RATIO;
+    this.margin = { t: m, r: m, b: m, l: m };`,
+    `    const m = this.size * WINDOW_MARGIN_RATIO;
+    // [dsh-pet-android] 左右余量另加 1/3 宠物宽（宽动画帧不被窗口裁切；与 WindowController.MARGIN_RATIO_X 同步）
+    this.margin = { t: m, r: m + this.size / 3, b: m, l: m + this.size / 3 };`,
+  ],
+  // ⑪ 活动范围：可见身体出屏其自身宽度的 1/4（按 HIT_BOX 内的身体宽计，非 sprite canvas 宽），
+  //   漫游 planMove.sideAllow、抛掷墙 throwBounds、落点夹取共用同一值
+  [
+    `    this.sideAllow = (S.HIT_BOX.x0 / 640) * this.size;`,
+    `    this.sideAllow = ((S.HIT_BOX.x0 + (S.HIT_BOX.x1 - S.HIT_BOX.x0) * 0.25) / 640) * this.size; // [dsh-pet-android] 身体可出屏其宽度的 1/4（基线：身体贴边）`,
   ],
   // ③ 根级工具项替换 + ④ events 过滤
   [
@@ -342,7 +364,7 @@ const sharedCorePatched = patch(join(helper, 'shared-core.js'), [
   ],
   [
     "\tvy += GRAVITY * dt;",
-    "\tvy += GRAVITY * (window.__dshPetGravityMult ?? 1) * dt; // [dsh-pet-android] 重力倍率\n\tconst dragK = Math.max(0, 1 - AIR_DRAG * (window.__dshPetDragScale ?? 1) * dt); // [dsh-pet-android] 空气阻尼：速度按帧衰减（档位越低阻力越大）\n\tvx *= dragK;\n\tvy *= dragK;",
+    "\tvy += GRAVITY * (window.__dshPetGravityMult ?? 1) * dt; // [dsh-pet-android] 重力倍率\n\tconst dragK = Math.max(0, 1 - AIR_DRAG * (window.__dshPetDragScale ?? 1) * (window.__dshPetDragUserMult ?? 1) * dt); // [dsh-pet-android] 空气阻尼 = 基准 × 重力档位系数 × 用户倍率\n\tvx *= dragK;\n\tvy *= dragK;",
   ],
   [
     "\tconst atRest = y >= b.maxY - 1 && Math.abs(vy) < 1 && Math.abs(vx) < REST_VX || bounced && speed < REST_VY && Math.abs(vy) < 1;",

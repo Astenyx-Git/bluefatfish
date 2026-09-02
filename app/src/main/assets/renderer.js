@@ -45,6 +45,14 @@ window.__dshPetGravityMult = (() => {
   const n = Number(g);
   return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
 })();
+// [dsh-pet-android] 阻力用户倍率（控制台阻力条写入 URL 参数 dm；PetService ACTION_SET_DRAG 可实时覆盖）：
+// 与 __dshPetDragScale（重力档位基础阻力）相乘，1.0×-5.0×
+window.__dshPetDragUserMult = (() => {
+  const d = params.get('dm');
+  if (d === null) return 1;
+  const n = Number(d);
+  return Number.isFinite(n) ? Math.min(5, Math.max(1, n)) : 1;
+})();
 // [dsh-pet-android] 空气阻力档位：重力越低阻力越大（抵消长滞空的失控滑行），节点间线性插值
 // 表：1.0→100%，0.7→125%，0.5→150%，0.3→175%，0→175%
 window.__dshPetDragScale = (() => {
@@ -163,12 +171,13 @@ class PetSprite {
     window.__dshPetDebug.hitRect = this.hitRect;
     // 左右透明边余量（视频盒内宠物身体居中）：让边界按"身体"贴边——宠物能走到屏幕边缘，
     // 但身体永不越界（漫游/拖拽都不会弄丢宠物）。与浏览器 overlay 的 sideAllow 同一套语义。
-    this.sideAllow = (S.HIT_BOX.x0 / 640) * this.size;
+    this.sideAllow = ((S.HIT_BOX.x0 + (S.HIT_BOX.x1 - S.HIT_BOX.x0) * 0.25) / 640) * this.size; // [dsh-pet-android] 身体可出屏其宽度的 1/4（基线：身体贴边）
     window.__dshPetDebug.sideAllow = this.sideAllow;
     // 窗口四周外扩（= WINDOW_MARGIN_RATIO×宠物尺寸）：sprite 钉在 (margin.l, margin.t)，
     // 窗口 = sprite + 四边余量——气泡/未来弹窗显示在余量里；余量透明且点击穿透
     const m = this.size * WINDOW_MARGIN_RATIO;
-    this.margin = { t: m, r: m, b: m, l: m };
+    // [dsh-pet-android] 左右余量另加 1/3 宠物宽（宽动画帧不被窗口裁切；与 WindowController.MARGIN_RATIO_X 同步）
+    this.margin = { t: m, r: m + this.size / 3, b: m, l: m + this.size / 3 };
     window.__dshPetDebug.winMargin = this.margin;
     // 宠物包围盒左上角在【工作区】坐标系里的位置（本窗口的位置 = 宠物的位置）
     this.pos = { x: 0, y: 0 };

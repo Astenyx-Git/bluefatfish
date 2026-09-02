@@ -150,6 +150,41 @@ class ConsoleActivity : Activity() {
                     })
                 },
             )
+            // [dsh-pet-android] 阻力拖动条：1.0×-5.0×，乘算于各重力档位的基础阻力（__dshPetDragScale）之上
+            val dragValues = floatArrayOf(1f, 2f, 3f, 4f, 5f)
+            val savedD = prefs().getFloat(PetService.KEY_DRAG_MULT, 1f)
+            val initialD = dragValues.indexOfFirst { it == savedD }.let { if (it < 0) 0 else it }
+            val dragLabel = TextView(this@ConsoleActivity).apply {
+                text = "空气阻力 ×" + dragValues[initialD]
+                textSize = 14f
+                setPadding(0, dp(16), 0, dp(4))
+            }
+            addView(dragLabel)
+            addView(
+                SeekBar(this@ConsoleActivity).apply {
+                    max = 4
+                    progress = initialD
+                    progressTintList = ColorStateList.valueOf(Color.parseColor("#66ccff"))
+                    thumbTintList = ColorStateList.valueOf(Color.parseColor("#66ccff"))
+                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
+                            dragLabel.text = "空气阻力 ×" + dragValues[p]
+                        }
+
+                        override fun onStartTrackingTouch(sb: SeekBar?) {}
+
+                        override fun onStopTrackingTouch(sb: SeekBar?) {
+                            val v = dragValues[progress]
+                            prefs().edit().putFloat(PetService.KEY_DRAG_MULT, v).apply()
+                            startService(
+                                Intent(this@ConsoleActivity, PetService::class.java)
+                                    .setAction(PetService.ACTION_SET_DRAG)
+                                    .putExtra("dm", v),
+                            )
+                        }
+                    })
+                },
+            )
         }
         root.addView(statusView)
         root.addView(guideBlock)

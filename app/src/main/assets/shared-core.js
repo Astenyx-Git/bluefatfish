@@ -830,7 +830,7 @@ const throwStep = (s, dtRaw, b) => {
 	const dt = Math.min(Math.max(dtRaw, 0), MAX_STEP_DT);
 	let { x, y, vx, vy } = s;
 	vy += GRAVITY * (window.__dshPetGravityMult ?? 1) * dt; // [dsh-pet-android] 重力倍率
-	const dragK = Math.max(0, 1 - AIR_DRAG * (window.__dshPetDragScale ?? 1) * dt); // [dsh-pet-android] 空气阻尼：速度按帧衰减（档位越低阻力越大）
+	const dragK = Math.max(0, 1 - AIR_DRAG * (window.__dshPetDragScale ?? 1) * (window.__dshPetDragUserMult ?? 1) * dt); // [dsh-pet-android] 空气阻尼 = 基准 × 重力档位系数 × 用户倍率
 	vx *= dragK;
 	vy *= dragK;
 	x += vx * dt;

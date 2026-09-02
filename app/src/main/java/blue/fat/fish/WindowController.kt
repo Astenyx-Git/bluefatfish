@@ -33,6 +33,8 @@ class WindowController(private val context: Context) {
         private const val HIT_Y1 = 335.0
         // 与 renderer fork 后的 WINDOW_MARGIN_RATIO 保持一致
         private const val MARGIN_RATIO = 0.12
+        // [dsh-pet-android] 左右余量另加 1/3 宠物宽（0.12 + 1/3 ≈ 0.4533；与 renderer fork 的 margin.l/r 同步）
+        private const val MARGIN_RATIO_X = MARGIN_RATIO + 1.0 / 3.0
         private const val DEFAULT_SIZE_CSS = 180.0
     }
 
@@ -104,7 +106,7 @@ class WindowController(private val context: Context) {
         )
 
         // 初始估算尺寸（renderer 首帧 setBounds 立即精确覆盖，仅避免启动瞬间闪跳）
-        val estW = DEFAULT_SIZE_CSS * (1 + 2 * MARGIN_RATIO)
+        val estW = DEFAULT_SIZE_CSS * (1 + 2 * MARGIN_RATIO_X)
         val estH = DEFAULT_SIZE_CSS * 9.0 / 16.0 * (1 + (CANVAS_H - FEET_Y) / CANVAS_H) + 2 * DEFAULT_SIZE_CSS * MARGIN_RATIO
         vw = (estW * density).roundToInt()
         vh = (estH * density).roundToInt()
@@ -169,12 +171,13 @@ class WindowController(private val context: Context) {
         if (vw <= 0 || vh <= 0) return null
         val winW = vw / density
         val winH = vh / density
-        val size = winW / (1 + 2 * MARGIN_RATIO)
-        val margin = size * MARGIN_RATIO
-        val height = (winH - 2 * margin) * CANVAS_H / (CANVAS_H + (CANVAS_H - FEET_Y))
+        val size = winW / (1 + 2 * MARGIN_RATIO_X)
+        val marginX = size * MARGIN_RATIO_X
+        val marginT = size * MARGIN_RATIO
+        val height = (winH - 2 * marginT) * CANVAS_H / (CANVAS_H + (CANVAS_H - FEET_Y))
         val bottomPad = height * (CANVAS_H - FEET_Y) / CANVAS_H
-        val x = margin + size * HIT_X0 / CANVAS_W
-        val y = margin + bottomPad + height * HIT_Y0 / CANVAS_H
+        val x = marginX + size * HIT_X0 / CANVAS_W
+        val y = marginT + bottomPad + height * HIT_Y0 / CANVAS_H
         val w = size * (HIT_X1 - HIT_X0) / CANVAS_W
         val h = height * (HIT_Y1 - HIT_Y0) / CANVAS_H
         return doubleArrayOf(x, y, w, h)
@@ -193,6 +196,11 @@ class WindowController(private val context: Context) {
             gravity = Gravity.TOP or Gravity.START
             x = vx
             y = vy
+            // [dsh-pet-android] 不吃任何系统 inset（状态栏/挖孔/导航均由 renderer 自行管理）：
+            // 透明状态栏下窗口原点 = 物理屏顶，而不是状态栏/挖孔下缘；底部上界同样自主控制
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                fitInsetsTypes = 0
+            }
         }
 
     @SuppressLint("WrongConstant")

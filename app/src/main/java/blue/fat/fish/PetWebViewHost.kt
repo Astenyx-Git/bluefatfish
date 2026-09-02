@@ -54,15 +54,17 @@ class PetWebViewHost(private val context: Context, private val bridge: PetBridge
             ): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
         }
         val configUrl = "https://appassets.androidplatform.net/assets/config.jsonc"
-        // 重力倍率初值：设置页拖动条写入的偏好（renderer 内 ACTION_SET_GRAVITY 可实时覆盖）
-        val gm = context.getSharedPreferences(PetService.PREFS, Context.MODE_PRIVATE)
-            .getFloat(PetService.KEY_GRAVITY_MULT, 1f)
+        // 重力/阻力初值：设置页拖动条写入的偏好（renderer 内 ACTION_SET_* 可实时覆盖）
+        val sp = context.getSharedPreferences(PetService.PREFS, Context.MODE_PRIVATE)
+        val gm = sp.getFloat(PetService.KEY_GRAVITY_MULT, 1f)
+        val dm = sp.getFloat(PetService.KEY_DRAG_MULT, 1f)
         val url = "https://appassets.androidplatform.net/assets/index.html" +
             "?configUrl=" + Uri.encode(configUrl) +
             "&workAreaW=" + viewportW.toInt() +
             "&workAreaH=" + viewportH.toInt() +
             "&gestureInset=" + gestureInset.toInt() +
             "&gm=" + gm +
+            "&dm=" + dm +
             "&scale=1&petIndex=0"
         wv.loadUrl(url)
         return wv

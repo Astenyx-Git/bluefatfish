@@ -22,8 +22,10 @@ class PetService : Service() {
         private const val NOTIFICATION_ID = 1
         const val ACTION_TOGGLE_PAUSE = "blue.fat.fish.TOGGLE_PAUSE"
         const val ACTION_SET_GRAVITY = "blue.fat.fish.SET_GRAVITY"
+        const val ACTION_SET_DRAG = "blue.fat.fish.SET_DRAG"
         const val PREFS = "pet-prefs"
         const val KEY_GRAVITY_MULT = "gravity_mult"
+        const val KEY_DRAG_MULT = "drag_mult"
         @Volatile
         var running = false
             private set
@@ -88,6 +90,11 @@ class PetService : Service() {
         if (intent?.action == ACTION_SET_GRAVITY) {
             val gm = intent.getFloatExtra("gm", 1f)
             controller?.evalJs("window.__dshPetGravityMult=" + gm + ";")
+        }
+        // 控制台阻力拖动条：实时注入 renderer（window.__dshPetDragUserMult，乘算于档位基础阻力）
+        if (intent?.action == ACTION_SET_DRAG) {
+            val dm = intent.getFloatExtra("dm", 1f)
+            controller?.evalJs("window.__dshPetDragUserMult=" + dm + ";")
         }
         return START_STICKY
     }
