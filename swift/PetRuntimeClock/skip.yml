@@ -1,0 +1,2 @@
+# Skip 转译配置：仅逻辑转译（无 UI），产物拷入 Android 工程
+mode: transpile
