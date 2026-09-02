@@ -84,6 +84,34 @@ window.__dshPetDragScale = (() => {
     'const WINDOW_MARGIN_RATIO = 0.5;',
     'const WINDOW_MARGIN_RATIO = 0.12; // [dsh-pet-android] 气泡已删，余量仅为菜单预留（与 WindowController.MARGIN_RATIO 同步）',
   ],
+  // ⑨b 暂停态不被交互打断：拖拽起步/松手接待机链在 paused 时跳过（与点击回应暂停门同一模式），
+  //   宠物以定格帧跟随位移（拖拽/抛掷物理照常），恢复后从原动画继续
+  [
+    `      if (this.animations.drag.length) {
+        this.playOnce(S.pick(this.animations.drag));
+      }`,
+    `      if (this.animations.drag.length && !this.paused) {
+        // [dsh-pet-android] 暂停态拖拽不播拖拽动画：保持定格，仅位移
+        this.playOnce(S.pick(this.animations.drag));
+      }`,
+  ],
+  [
+    `      // 释放后接一段循环待机（与浏览器一致），再回随机链
+      if (this.animations.idle.length) {
+        const name = S.pick(this.animations.idle, this.anim);
+        this.anim = name;
+        this.once = false;
+        this.switchTo(name, false);
+      }`,
+    `      // 释放后接一段循环待机（与浏览器一致），再回随机链
+      if (this.animations.idle.length && !this.paused) {
+        // [dsh-pet-android] 暂停态松手不接待机链：保持定格（位置已由 customPos 固化）
+        const name = S.pick(this.animations.idle, this.anim);
+        this.anim = name;
+        this.once = false;
+        this.switchTo(name, false);
+      }`,
+  ],
   // ③ 根级工具项替换 + ④ events 过滤
   [
     `    // 桌面专属工具根项（打开网站 / 查看余额 / 回到初始位置）+ 共享菜单树（动作→分类→具体动画）

@@ -116,6 +116,13 @@
         // 点外：mousedown 冒泡到 document → renderer 菜单关闭
         slog('tap outside el=' + (el2.className && typeof el2.className === 'string' ? el2.className : el2.tagName));
         el2.dispatchEvent(new MouseEvent('mousedown', o));
+        // [dsh-pet-android] 点在宠物身上（含菜单开着的宠物区域）= 完整 tap 三连：
+        // renderer 的点击回应绑在 click 上（hit.addEventListener('click')），
+        // 只发 mousedown 会吞掉回应——此回归自菜单触屏模型改版起存在
+        if (el2.closest && el2.closest('.pet-hit')) {
+          el2.dispatchEvent(new MouseEvent('mouseup', o));
+          el2.dispatchEvent(new MouseEvent('click', o));
+        }
       }
     }
   };

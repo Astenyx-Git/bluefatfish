@@ -670,7 +670,8 @@ class PetSprite {
       d.dragging = true;
       // 真正开始拖拽才把舞台拍平（人物随光标拿起；与浏览器 dragging 语义一致）
       this.stage.style.transform = 'none';
-      if (this.animations.drag.length) {
+      if (this.animations.drag.length && !this.paused) {
+        // [dsh-pet-android] 暂停态拖拽不播拖拽动画：保持定格，仅位移
         this.playOnce(S.pick(this.animations.drag));
       }
     }
@@ -709,7 +710,8 @@ class PetSprite {
         };
       }
       // 释放后接一段循环待机（与浏览器一致），再回随机链
-      if (this.animations.idle.length) {
+      if (this.animations.idle.length && !this.paused) {
+        // [dsh-pet-android] 暂停态松手不接待机链：保持定格（位置已由 customPos 固化）
         const name = S.pick(this.animations.idle, this.anim);
         this.anim = name;
         this.once = false;
