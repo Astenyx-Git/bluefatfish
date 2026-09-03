@@ -16,3 +16,5 @@ gradle/gradle-daemon-jvm.properties
 
 # release 签名密钥库（含口令，绝不入公开仓库）
 /bluefatfish
+# Skip transpile artifacts (Swift sources are the single source of truth; never commit generated kt)
+app/src/main/java/blue/fat/fish/clock/RuntimeLedger.kt
