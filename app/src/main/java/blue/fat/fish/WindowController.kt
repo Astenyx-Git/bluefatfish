@@ -140,17 +140,17 @@ class WindowController(private val context: Context) {
         refreshDisplayMetrics()
         val newRotation = wm.defaultDisplay.rotation
         lastRotation = newRotation
-        // 旧方向 → natural（Surface.rotation 约定的标准映射）
+        // 旧方向 → natural（Surface.rotation 约定：1=设备顺时针转90°，3=逆时针；真机校准）
         val nat = when (oldRotation % 4) {
-            1 -> Pair(oldHpx - ay0, ax0)
-            3 -> Pair(ay0, oldWpx - ax0)
+            1 -> Pair(ay0, oldWpx - ax0)
+            3 -> Pair(oldHpx - ay0, ax0)
             2 -> Pair(oldWpx - ax0, oldHpx - ay0)
             else -> Pair(ax0, ay0)
         }
         // natural → 新方向
         val abs = when (newRotation % 4) {
-            1 -> Pair(nat.second, realH * density - nat.first)
-            3 -> Pair(realW * density - nat.second, nat.first)
+            1 -> Pair(realW * density - nat.second, nat.first)
+            3 -> Pair(nat.second, realH * density - nat.first)
             2 -> Pair(realW * density - nat.first, realH * density - nat.second)
             else -> nat
         }
