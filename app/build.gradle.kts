@@ -11,8 +11,12 @@ android {
         applicationId = "blue.fat.fish"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        // 版本规范：versionName = 语义化 MAJOR.MINOR.PATCH（主=大改版/次=功能新增/修订=缺陷修复）；
+        // versionCode 由 versionName 派生（各段 ×100 进位，段值须 <100），单调递增且一一对应，
+        // 改版本只动 versionName 一处。
+        val vName = "0.4.0"
+        versionName = vName
+        versionCode = vName.split(".").fold(0) { acc, seg -> acc * 100 + seg.toInt() }
     }
 
     // release 签名：项目根 bluefatfish 密钥库（PKCS12，全部字段 = bluefatfish，30 年有效期）

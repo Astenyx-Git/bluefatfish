@@ -113,6 +113,14 @@ class ConsoleActivity : Activity() {
             autostartSwitch = Switch(this@ConsoleActivity).apply {
                 text = getString(R.string.autostart_label)
                 isChecked = prefs().getBoolean(KEY_AUTOSTART, false)
+                // [dsh-pet-android] 主题色统一 #66ccff：选中态着色，未选中介灰（SeekBar/链接已同色）
+                val accent = Color.parseColor("#66ccff")
+                val states = arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf(),
+                )
+                thumbTintList = ColorStateList(states, intArrayOf(accent, Color.parseColor("#B0BEC5")))
+                trackTintList = ColorStateList(states, intArrayOf(Color.parseColor("#5566CCFF"), Color.parseColor("#33B0BEC5")))
                 setOnCheckedChangeListener { _, checked ->
                     prefs().edit().putBoolean(KEY_AUTOSTART, checked).apply()
                 }

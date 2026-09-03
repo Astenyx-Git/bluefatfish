@@ -2,9 +2,9 @@
 <resources>
     <!-- APK 本体页：系统全局字体（不引入自定义字体），Material 原生组件 -->
     <style name="Theme.DshPet" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:colorPrimary">#E91E63</item>
-        <item name="android:colorPrimaryDark">#C2185B</item>
-        <item name="android:colorAccent">#E91E63</item>
+        <item name="android:colorPrimary">#66CCFF</item>
+        <item name="android:colorPrimaryDark">#3399CC</item>
+        <item name="android:colorAccent">#66CCFF</item>
         <item name="android:windowBackground">@android:color/white</item>
     </style>
 </resources>
