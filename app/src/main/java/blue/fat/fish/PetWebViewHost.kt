@@ -21,7 +21,7 @@ import androidx.webkit.WebViewAssetLoader
 class PetWebViewHost(private val context: Context, private val bridge: PetBridge) {
     private var webView: WebView? = null
 
-    fun create(viewportW: Float, viewportH: Float, gestureInset: Float): WebView {
+    fun create(viewportW: Float, viewportH: Float): WebView {
         val wv = WebView(context)
         webView = wv
         wv.setBackgroundColor(Color.TRANSPARENT)
@@ -53,21 +53,35 @@ class PetWebViewHost(private val context: Context, private val bridge: PetBridge
                 request: WebResourceRequest,
             ): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
         }
+        load(viewportW, viewportH)
+        return wv
+    }
+
+    private fun load(viewportW: Float, viewportH: Float) {
+        webView?.loadUrl(buildUrl(viewportW, viewportH))
+    }
+
+    /** 携新工作区度量重新加载 renderer（横竖屏切换后坐标系重置；宠物回到角落锚点） */
+    fun reload(viewportW: Float, viewportH: Float) {
+        val wv = webView ?: return
+        val url = buildUrl(viewportW, viewportH)
+        wv.post { wv.loadUrl(url) }
+    }
+
+    private fun buildUrl(viewportW: Float, viewportH: Float): String {
         val configUrl = "https://appassets.androidplatform.net/assets/config.jsonc"
         // 重力/阻力初值：设置页拖动条写入的偏好（renderer 内 ACTION_SET_* 可实时覆盖）
         val sp = context.getSharedPreferences(PetService.PREFS, Context.MODE_PRIVATE)
         val gm = sp.getFloat(PetService.KEY_GRAVITY_MULT, 1f)
         val dm = sp.getFloat(PetService.KEY_DRAG_MULT, 1f)
-        val url = "https://appassets.androidplatform.net/assets/index.html" +
+        // 工作区宽高已由壳侧扣除导航条（位置自适应），renderer 不再做 inset 扣减
+        return "https://appassets.androidplatform.net/assets/index.html" +
             "?configUrl=" + Uri.encode(configUrl) +
             "&workAreaW=" + viewportW.toInt() +
             "&workAreaH=" + viewportH.toInt() +
-            "&gestureInset=" + gestureInset.toInt() +
             "&gm=" + gm +
             "&dm=" + dm +
             "&scale=1&petIndex=0"
-        wv.loadUrl(url)
-        return wv
     }
 
     /** 主线程 JS 注入（合成事件 / 暂停控制）；调用方负责已在主线程或自行 post */

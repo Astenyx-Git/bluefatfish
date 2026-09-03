@@ -134,6 +134,32 @@ window.__dshPetDragScale = (() => {
     `    this.sideAllow = (S.HIT_BOX.x0 / 640) * this.size;`,
     `    this.sideAllow = ((S.HIT_BOX.x0 + (S.HIT_BOX.x1 - S.HIT_BOX.x0) * 0.25) / 640) * this.size; // [dsh-pet-android] 身体可出屏其宽度的 1/4（基线：身体贴边）`,
   ],
+  // ⑫ 壳侧横竖屏适配的落位入口：壳完成物理坐标换算（rotation 码 + natural 系），这里直接落位
+  [
+    `const VIEW = {
+  w: Number(params.get('workAreaW') || (window.screen && window.screen.availWidth) || 1920),
+  h: Number(params.get('workAreaH') || (window.screen && window.screen.availHeight) || 1080),
+};`,
+    `const VIEW = {
+  w: Number(params.get('workAreaW') || (window.screen && window.screen.availWidth) || 1920),
+  h: Number(params.get('workAreaH') || (window.screen && window.screen.availHeight) || 1080),
+};
+// [dsh-pet-android] 壳侧旋转适配：按换算后的工作区坐标直接落位（绝对坐标保持由壳完成）
+window.__dshPetSetPosition = function (x, y) {
+  const s0 = (typeof sprites !== 'undefined' && sprites && sprites[0]) || null;
+  if (!s0) return;
+  if (s0.throwRef !== null) s0.stopThrow(); // 飞行中旋转：立即定格（防丢宠）
+  s0.customPos = { rx: x / VIEW.w, ry: y / VIEW.h };
+  s0.pos = { x: Math.round(x), y: Math.round(y) };
+  window.__dshPetDebug.dragPos = { x: s0.pos.x, y: s0.pos.y };
+  s0.sendBounds(
+    s0.pos.x - s0.margin.l,
+    s0.pos.y - s0.margin.t,
+    s0.size + s0.margin.l + s0.margin.r,
+    s0.winH + s0.margin.t + s0.margin.b,
+  );
+};`,
+  ],
   // ③ 根级工具项替换 + ④ events 过滤
   [
     `    // 桌面专属工具根项（打开网站 / 查看余额 / 回到初始位置）+ 共享菜单树（动作→分类→具体动画）

@@ -6,6 +6,9 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import blue.fat.fish.clock.RuntimeLedger
+import blue.fat.fish.clock.RuntimeLedgerStore
 import android.view.Gravity
 import android.view.WindowManager
 import android.webkit.WebView
@@ -35,6 +38,8 @@ class WindowController(private val context: Context) {
         private const val MARGIN_RATIO = 0.12
         // [dsh-pet-android] 左右余量另加 1/3 宠物宽（0.12 + 1/3 ≈ 0.4533；与 renderer fork 的 margin.l/r 同步）
         private const val MARGIN_RATIO_X = MARGIN_RATIO + 1.0 / 3.0
+        // 运行时长账本周期落盘间隔
+        private const val FLUSH_INTERVAL_MS = 60_000L
         private const val DEFAULT_SIZE_CSS = 180.0
     }
 
@@ -42,9 +47,16 @@ class WindowController(private val context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var density = 1f
-    private var viewportW = 0f // 全屏宽（CSS px，renderer 视口）
-    private var viewportH = 0f // 全屏高（CSS px；手势区由 renderer 经 gestureInset 自行扣减）
-    private var gestureInset = 0f
+    private var realW = 0f // 物理屏宽（CSS px）
+    private var realH = 0f // 物理屏高（CSS px）
+    private var navL = 0f // 导航条左缘宽（CSS px；横屏可能侧置，由 insets 回调修正）
+    private var navR = 0f // 导航条右缘宽
+    private var navB = 0f // 导航条底缘高（竖屏）
+    private var wsX = 0f // 工作区原点 X（CSS px；= 导航条左缘，renderer 坐标保持 0 基）
+    private var wsY = 0f // 工作区原点 Y：恒 0 —— 透明状态栏下上边框对齐物理屏（既定需求）
+    private var lastRotation = 0 // 上次 display rotation（0/1/2/3，用于物理位换算）
+    private var viewportW = 0f // 工作区宽（CSS px，renderer 视口）
+    private var viewportH = 0f // 工作区高
 
     private lateinit var webHost: PetWebViewHost
     private lateinit var visual: WebView
@@ -59,6 +71,95 @@ class WindowController(private val context: Context) {
     // 低速蠕行段（每帧位移 < 1 物理像素）消除"停两帧跳一像素"的量化抖动
     private var carryX = 0f
     private var carryY = 0f
+    // [dsh-pet-android] 累计运行时长账本（Swift PetRuntimeClock 逻辑；悬浮窗存在即计时，暂停动画同计）
+    private val ledgerStore = RuntimeLedgerStore(context)
+    private val ledger = RuntimeLedger(ledgerStore.load())
+    private val flushRunnable = object : Runnable {
+        override fun run() {
+            val n = nowSec()
+            ledger.pause(n) // 结账→落盘→重新开账（崩溃最多丢一个周期）
+            ledgerStore.save(RuntimeLedgerStore.SCOPE_DEVICE, ledger)
+            ledger.resume(n)
+            mainHandler.postDelayed(this, FLUSH_INTERVAL_MS)
+        }
+    }
+
+    private fun nowSec(): Double = SystemClock.elapsedRealtime() / 1000.0
+
+    /** 重算物理屏度量 + 导航条预估（精确值由 visual 的 insets 回调修正；首次前用导航栏资源兜底） */
+    private fun refreshDisplayMetrics() {
+        val real = android.util.DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealMetrics(real)
+        density = real.density
+        realW = real.widthPixels / density
+        realH = real.heightPixels / density
+        if (navL == 0f && navR == 0f && navB == 0f) {
+            val navId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
+            navB = if (navId > 0) context.resources.getDimensionPixelSize(navId) / density else 0f
+        }
+        applyWorkspace()
+    }
+
+    /** 导航条真实位置 → 工作区：宽扣左右缘、高扣底缘、原点=左缘。
+     *  尺寸变化只 eval 改 renderer 的 VIEW（不搬宠物、不重载页面——reload 真机实测 = 闪烁）。
+     *  宠物物理位保持仅在真实横竖屏切换时由 onDisplayChanged 完成。 */
+    private fun applyWorkspace() {
+        if (realW <= 0f) return
+        val newW = realW - navL - navR
+        val newH = realH - navB
+        val changed = kotlin.math.abs(newW - viewportW) >= 0.5f ||
+            kotlin.math.abs(newH - viewportH) >= 0.5f
+        viewportW = newW
+        viewportH = newH
+        wsX = navL
+        wsY = 0f
+        if (changed && started && this::webHost.isInitialized) {
+            mainHandler.post {
+                webHost.eval("VIEW.w=" + viewportW + ";VIEW.h=" + viewportH + ";")
+            }
+        }
+    }
+
+    /** [dsh-pet-android] 横竖屏/显示配置变化。同方向（inset 修正）：只改度量不动宠物；
+     *  真实旋转：宠物包围盒左上经 natural 坐标系换算到新方向（保持屏幕物理位置），越界夹取。 */
+    fun onDisplayChanged() {
+        if (!started) return
+        val oldRotation = lastRotation
+        if (wm.defaultDisplay.rotation == oldRotation) {
+            refreshDisplayMetrics()
+            return
+        }
+        val oldDensity = density
+        val oldWpx = realW * oldDensity
+        val oldHpx = realH * oldDensity
+        val winWCss = vw / oldDensity
+        val size = winWCss / (1 + 2 * MARGIN_RATIO_X)
+        val ax0 = vx + size * MARGIN_RATIO_X * oldDensity // 宠物包围盒左上（旧方向 device px）
+        val ay0 = vy + size * MARGIN_RATIO * oldDensity
+        refreshDisplayMetrics()
+        val newRotation = wm.defaultDisplay.rotation
+        lastRotation = newRotation
+        // 旧方向 → natural（Surface.rotation 约定的标准映射）
+        val nat = when (oldRotation % 4) {
+            1 -> Pair(oldHpx - ay0, ax0)
+            3 -> Pair(ay0, oldWpx - ax0)
+            2 -> Pair(oldWpx - ax0, oldHpx - ay0)
+            else -> Pair(ax0, ay0)
+        }
+        // natural → 新方向
+        val abs = when (newRotation % 4) {
+            1 -> Pair(nat.second, realH * density - nat.first)
+            3 -> Pair(realW * density - nat.second, nat.first)
+            2 -> Pair(realW * density - nat.first, realH * density - nat.second)
+            else -> nat
+        }
+        val tx = (abs.first / density - wsX).coerceIn(0.0, (viewportW - size).coerceAtLeast(0.0))
+        val ty = (abs.second / density - wsY).coerceIn(0.0, (viewportH - size * 9.0 / 16.0).coerceAtLeast(0.0))
+        mainHandler.post {
+            webHost.eval("__dshPetSetPosition(" + tx + "," + ty + ");")
+        }
+    }
     private var menuExpanded = false // renderer 菜单开合（setInteractive）
     private var dragExpanded = false // 拖拽/长按期（relay 驱动）
     private var started = false
@@ -66,15 +167,10 @@ class WindowController(private val context: Context) {
     fun start() {
         if (started) return
         started = true
-        val real = android.util.DisplayMetrics()
-        @Suppress("DEPRECATION")
-        wm.defaultDisplay.getRealMetrics(real)
-        density = real.density
-        viewportW = real.widthPixels / density
-        viewportH = real.heightPixels / density
-        // 底部导航/手势条高度（简化：导航栏资源；P2 换 WindowInsets 精确值）
-        val navId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
-        gestureInset = if (navId > 0) context.resources.getDimensionPixelSize(navId) / density else 0f
+        refreshDisplayMetrics()
+        lastRotation = wm.defaultDisplay.rotation
+        ledger.resume(nowSec())
+        mainHandler.postDelayed(flushRunnable, FLUSH_INTERVAL_MS)
 
         val bridge = PetBridge(
             onBounds = { x, y, w, h -> updateBounds(x, y, w, h) },
@@ -85,7 +181,26 @@ class WindowController(private val context: Context) {
             onShellAction = { action -> handleShellAction(action) },
         )
         webHost = PetWebViewHost(context, bridge)
-        visual = webHost.create(viewportW, viewportH, gestureInset)
+        visual = webHost.create(viewportW, viewportH)
+        // 导航条真实位置/尺寸回修：insets 按边读取（横屏侧置时原点/宽高随之修正）
+        visual.setOnApplyWindowInsetsListener { _, insets ->
+            val d = density
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                val nav = insets.getInsets(android.view.WindowInsets.Type.navigationBars())
+                navL = nav.left / d
+                navR = nav.right / d
+                navB = nav.bottom / d
+            } else {
+                @Suppress("DEPRECATION")
+                run {
+                    navL = insets.systemWindowInsetLeft / d
+                    navR = insets.systemWindowInsetRight / d
+                    navB = insets.systemWindowInsetBottom / d
+                }
+            }
+            applyWorkspace()
+            insets
+        }
 
         touch = GestureRelayView(
             context,
@@ -110,8 +225,8 @@ class WindowController(private val context: Context) {
         val estH = DEFAULT_SIZE_CSS * 9.0 / 16.0 * (1 + (CANVAS_H - FEET_Y) / CANVAS_H) + 2 * DEFAULT_SIZE_CSS * MARGIN_RATIO
         vw = (estW * density).roundToInt()
         vh = (estH * density).roundToInt()
-        vx = ((viewportW - estW - 8.0) * density).roundToInt()
-        vy = (48 * density).roundToInt()
+        vx = ((wsX + viewportW - estW - 8.0) * density).roundToInt()
+        vy = ((wsY + viewportH - estH) * density).roundToInt() - vh
         wm.addView(visual, visualParams())
         wm.addView(touch, touchParamsSized(vw, vh))
     }
@@ -119,6 +234,9 @@ class WindowController(private val context: Context) {
     fun destroy() {
         if (!started) return
         started = false
+        mainHandler.removeCallbacks(flushRunnable)
+        ledger.pause(nowSec())
+        ledgerStore.save(RuntimeLedgerStore.SCOPE_DEVICE, ledger)
         try { wm.removeView(visual) } catch (_: Exception) {}
         try { wm.removeView(touch) } catch (_: Exception) {}
         webHost.destroy()
@@ -126,8 +244,8 @@ class WindowController(private val context: Context) {
 
     /** renderer setBounds（CSS px）→ 屏幕 px 摆窗 */
     private fun updateBounds(x: Float, y: Float, w: Float, h: Float) {
-        val fx = x * density + carryX
-        val fy = y * density + carryY
+        val fx = (x + wsX) * density + carryX
+        val fy = (y + wsY) * density + carryY
         vx = Math.round(fx)
         vy = Math.round(fy)
         carryX = fx - vx
@@ -222,6 +340,9 @@ class WindowController(private val context: Context) {
     fun evalJs(js: String) {
         mainHandler.post { webHost.eval(js) }
     }
+
+    /** 累计运行时长（毫秒，实时含未结账锚点）——控制台展示用 */
+    fun runtimeTotalMs(): Double = ledger.runningTotal(nowSec())
 
     private fun handleShellAction(action: String) {
         when (action) {

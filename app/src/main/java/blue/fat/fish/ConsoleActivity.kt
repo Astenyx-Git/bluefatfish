@@ -10,6 +10,8 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.text.util.Linkify
 import android.view.Gravity
@@ -23,6 +25,7 @@ import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import blue.fat.fish.clock.RuntimeLedgerStore
 
 /**
  * APK 本体 = 三态控制台（系统全局字体 + Material 原生组件）：
@@ -115,6 +118,12 @@ class ConsoleActivity : Activity() {
                 }
             }
             addView(autostartSwitch)
+            // [dsh-pet-android] 累计运行时长（Swift RuntimeLedger 账本，设备维度）：前台每秒实时刷新
+            runtimeLabel = TextView(this@ConsoleActivity).apply {
+                textSize = 13f
+                setPadding(0, dp(14), 0, 0)
+            }
+            addView(runtimeLabel)
             // [dsh-pet-android] 重力拖动条：左小右大（0 / 0.3 / 0.5 / 0.7 / 1.0），松手即实时注入 renderer
             val gravityValues = floatArrayOf(0f, 0.3f, 0.5f, 0.7f, 1f)
             val savedG = prefs().getFloat(PetService.KEY_GRAVITY_MULT, 1f)
@@ -218,8 +227,14 @@ class ConsoleActivity : Activity() {
     override fun onResume() {
         super.onResume()
         refresh()
+        tickHandler.post(tickRunnable)
         // [dsh-pet-android] 打开应用不再自动拉起桌宠（真机反馈）：
         // 授权返回后由用户手动点「启动桌宠」；开机自启仍由 BootReceiver 负责。
+    }
+
+    override fun onPause() {
+        super.onPause()
+        tickHandler.removeCallbacks(tickRunnable)
     }
 
     /** 状态翻转落在服务侧异步回调之后，延时补刷一次兜底 */
@@ -230,6 +245,30 @@ class ConsoleActivity : Activity() {
         if (v == 0f) "重力 0×（悬浮）" else "重力 " + v + "×"
 
     private fun prefs() = getSharedPreferences(PetService.PREFS, MODE_PRIVATE)
+
+    // [dsh-pet-android] 时长实时刷新：前台 1s 节拍；服务在跑读活账本，否则读最近落盘值
+    private val tickHandler = Handler(Looper.getMainLooper())
+    private var runtimeLabel: TextView? = null
+    private val tickRunnable = object : Runnable {
+        override fun run() {
+            val ms = PetService.activeController?.runtimeTotalMs()
+                ?: RuntimeLedgerStore(this@ConsoleActivity).load()
+            runtimeLabel?.text = fmtRuntime(ms)
+            tickHandler.postDelayed(this, 1_000L)
+        }
+    }
+
+    private fun fmtRuntime(ms: Double): String {
+        if (ms < 60_000.0) return "累计陪伴 <1 分钟"
+        val mins = (ms / 60_000.0).toLong()
+        val h = mins / 60
+        val m = mins % 60
+        return when {
+            h >= 24 -> "累计陪伴 ${h / 24} 天 ${h % 24} 小时"
+            h > 0 -> "累计陪伴 $h 小时 $m 分钟"
+            else -> "累计陪伴 $m 分钟"
+        }
+    }
 
     private fun refresh() {
         val canDraw = Settings.canDrawOverlays(this)

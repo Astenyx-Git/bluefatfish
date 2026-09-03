@@ -30,6 +30,11 @@ class PetService : Service() {
         var running = false
             private set
 
+        /** 存活中的控制器引用（同进程；控制台实时读运行时长用），销毁即置空 */
+        @Volatile
+        var activeController: WindowController? = null
+            private set
+
         /** 控制台乐观翻转：stopService→onDestroy 异步，UI 若等销毁回执会滞后一轮
          *  （真机实测：退出按钮第一次停宠物、第二次才刷新 UI）。 */
         fun requestStop(context: Context) {
@@ -97,7 +102,10 @@ class PetService : Service() {
             return START_NOT_STICKY
         }
         if (controller == null) {
-            controller = WindowController(this).also { it.start() }
+            controller = WindowController(this).also {
+                it.start()
+                activeController = it
+            }
             running = true
         }
         // 控制台的「暂停 / 恢复动画」走同一 renderer 通道（与菜单项同源）
@@ -115,9 +123,16 @@ class PetService : Service() {
         return START_STICKY
     }
 
+    /** [dsh-pet-android] 横竖屏切换等显示配置变化 → 重算工作区并重载 renderer */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        controller?.onDisplayChanged()
+    }
+
     override fun onDestroy() {
         controller?.destroy()
         controller = null
+        activeController = null
         running = false
         super.onDestroy()
     }

@@ -35,6 +35,21 @@ const VIEW = {
   w: Number(params.get('workAreaW') || (window.screen && window.screen.availWidth) || 1920),
   h: Number(params.get('workAreaH') || (window.screen && window.screen.availHeight) || 1080),
 };
+// [dsh-pet-android] 壳侧旋转适配：按换算后的工作区坐标直接落位（绝对坐标保持由壳完成）
+window.__dshPetSetPosition = function (x, y) {
+  const s0 = (typeof sprites !== 'undefined' && sprites && sprites[0]) || null;
+  if (!s0) return;
+  if (s0.throwRef !== null) s0.stopThrow(); // 飞行中旋转：立即定格（防丢宠）
+  s0.customPos = { rx: x / VIEW.w, ry: y / VIEW.h };
+  s0.pos = { x: Math.round(x), y: Math.round(y) };
+  window.__dshPetDebug.dragPos = { x: s0.pos.x, y: s0.pos.y };
+  s0.sendBounds(
+    s0.pos.x - s0.margin.l,
+    s0.pos.y - s0.margin.t,
+    s0.size + s0.margin.l + s0.margin.r,
+    s0.winH + s0.margin.t + s0.margin.b,
+  );
+};
 // [dsh-pet-android] 底部导航/手势条 inset：可用高扣减 → 漫游边界/抛掷地面/底部锚点整体上移。
 // （坐标即屏幕绝对坐标；菜单防遮挡由菜单打开时上报的 __dshPetMenuBottomInset 驱动，见 onContextMenu 与 shared-core 夹取补丁）
 VIEW.h -= Number(params.get('gestureInset') || 0);
